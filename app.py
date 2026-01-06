@@ -3,10 +3,10 @@ import random
 
 app = Flask(__name__)
 
-# Final controlled numbers
+# Admin controlled numbers
 BASE_ALLOWED_NUMBERS = [2, 11, 44]
 
-# Track used numbers (no repeat)
+# Track used numbers per range
 USED_NUMBERS = set()
 
 HTML = """
@@ -27,46 +27,64 @@ HTML = """
         background:#fff;width:92%;max-width:420px;padding:26px 22px;border-radius:18px;
         box-shadow:0 20px 40px rgba(0,0,0,.25);text-align:center;
     }
-    h1{margin:0 0 8px;font-size:1.6rem;color:#333}
-    .sub{font-size:.9rem;color:#666;margin-bottom:16px}
+    h1{margin:0 0 10px;font-size:1.6rem;color:#333}
+    .range-inputs{display:flex;gap:10px;margin-bottom:14px}
+    input{
+        width:100%;padding:12px;border-radius:10px;
+        border:1px solid #ccc;font-size:1rem
+    }
     button{
-        width:100%;padding:14px 0;border:none;border-radius:30px;font-size:1.1rem;
-        color:#fff;cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);
+        width:100%;padding:14px 0;border:none;border-radius:30px;
+        font-size:1.1rem;color:#fff;cursor:pointer;
+        background:linear-gradient(135deg,#667eea,#764ba2);
     }
     .roller{
-        margin-top:20px;height:70px;display:flex;align-items:center;justify-content:center;
+        margin-top:20px;height:70px;display:flex;
+        align-items:center;justify-content:center;
         font-size:3rem;font-weight:700;color:#4a4aff
     }
     .rolling{animation:shake .12s infinite}
-    @keyframes shake{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
-    footer{margin-top:14px;font-size:.75rem;color:#aaa}
+    @keyframes shake{
+        0%{transform:translateY(0)}
+        50%{transform:translateY(-4px)}
+        100%{transform:translateY(0)}
+    }
 </style>
 </head>
 <body>
 <div class="card">
     <h1>🎯 Number Picker</h1>
-    <div class="sub">Rolling 1 → 45 • No Repeat</div>
 
     <form method="post" onsubmit="startRoll()">
+        <div class="range-inputs">
+            <input type="number" name="start" required placeholder="Start">
+            <input type="number" name="end" required placeholder="End">
+        </div>
         <button type="submit">Pick Number</button>
     </form>
 
     <div id="roller" class="roller {% if rolling %}rolling{% endif %}">
         {% if number is not none %}{{ number }}{% else %}—{% endif %}
     </div>
-
-    
 </div>
 
 <script>
 function startRoll(){
     const r = document.getElementById('roller');
+    const start = parseInt(document.querySelector('[name="start"]').value);
+    const end = parseInt(document.querySelector('[name="end"]').value);
+
+    if(isNaN(start) || isNaN(end) || start >= end) return;
+
     r.classList.add('rolling');
-    let n = 1;
+    let n = start;
+
     const t = setInterval(()=>{
         r.textContent = n;
-        n = (n % 45) + 1;
-    }, 40);
+        n++;
+        if(n > end) n = start;
+    }, 35);
+
     setTimeout(()=>{ clearInterval(t); }, 900);
 }
 </script>
@@ -82,14 +100,22 @@ def index():
 
     if request.method == 'POST':
         rolling = True
+        start = int(request.form['start'])
+        end = int(request.form['end'])
 
-        # Reset once all numbers used
-        if len(USED_NUMBERS) == len(BASE_ALLOWED_NUMBERS):
-            USED_NUMBERS.clear()
+        # Allowed numbers inside typed range
+        allowed = [n for n in BASE_ALLOWED_NUMBERS if start <= n <= end]
 
-        remaining = list(set(BASE_ALLOWED_NUMBERS) - USED_NUMBERS)
-        number = random.choice(remaining)
-        USED_NUMBERS.add(number)
+        if not allowed:
+            number = "—"
+        else:
+            # Reset when exhausted
+            if USED_NUMBERS.issuperset(allowed):
+                USED_NUMBERS.clear()
+
+            remaining = list(set(allowed) - USED_NUMBERS)
+            number = random.choice(remaining)
+            USED_NUMBERS.add(number)
 
     return render_template_string(
         HTML,
