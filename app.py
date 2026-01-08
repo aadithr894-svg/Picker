@@ -4,7 +4,7 @@ import random
 app = Flask(__name__)
 
 # Admin controlled numbers
-BASE_ALLOWED_NUMBERS = [2, 11, 44]
+BASE_ALLOWED_NUMBERS = [2,3,5,22, 11, 44]
 
 # Track used numbers per range
 USED_NUMBERS = set()
